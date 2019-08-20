@@ -2,6 +2,7 @@ package com.chorifa.minioc.beans.factory;
 
 import com.chorifa.minioc.beans.BeanDefinition;
 import com.chorifa.minioc.beans.BeanReference;
+import com.chorifa.minioc.beans.FactoryBeanDefinition;
 import com.chorifa.minioc.beans.PropertyValue;
 import com.chorifa.minioc.utils.exceptions.BeanException;
 import org.slf4j.Logger;
@@ -9,10 +10,8 @@ import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.lang.reflect.Method;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class DefaultBeanFactory implements BeanFactory{
@@ -51,7 +50,7 @@ public class DefaultBeanFactory implements BeanFactory{
     private Object doGetBean(String name){
         BeanDefinition beanDefinition = beanDefinitionMap.get(name);
         if(beanDefinition == null)
-            throw new BeanException("DefaultBeanFactory: Bean >'"+name+"'< not found.");
+            throw new BeanException("DefaultBeanFactory: Bean ['"+name+"'] not found.");
         String beanName = beanDefinition.getBeanName();
         String className = beanDefinition.getBeanClass().getName();
         switch (beanDefinition.getScope()){
@@ -71,19 +70,19 @@ public class DefaultBeanFactory implements BeanFactory{
                         return bean;
                     case IN_CREATE:
                     case IN_INITIALIZE:
-                        throw new BeanException("DefaultBeanFactory: Bean >'"+beanName+" -- "
-                                +className+"'< encounter Circular Dependency (Prototype Mood).");
+                        throw new BeanException("DefaultBeanFactory: Bean ['"+beanName+" -- "
+                                +className+"'] encounter Circular Dependency (Prototype Mood).");
                     case UNREACHABLE:
-                        throw new BeanException("DefaultBeanFactory: Bean >'"+beanName+" -- "
-                            +className+"'< IN Status >UN_REACHABLE< .");
+                        throw new BeanException("DefaultBeanFactory: Bean ['"+beanName+" -- "
+                            +className+"'] IN Status [UN_REACHABLE] .");
                     case AVAILABLE:
-                        throw new BeanException("DefaultBeanFactory: Bean >'"+beanName+" -- "
-                                +className+"'< IN Status >AVAILABLE< (Prototype Mood), which"+
+                        throw new BeanException("DefaultBeanFactory: Bean ['"+beanName+" -- "
+                                +className+"'] IN Status [AVAILABLE] (Prototype Mood), which"+
                                 "should not happen");
                     default:
-                        throw new BeanException("DefaultBeanFactory: Bean >'"+beanName+" -- "
-                                +className+"'< IN unknown Status >"+beanDefinition.getStatus()+
-                                "<, which should not happen.");
+                        throw new BeanException("DefaultBeanFactory: Bean ['"+beanName+" -- "
+                                +className+"'] IN unknown Status ["+beanDefinition.getStatus()+
+                                "], which should not happen.");
                 }
             case SINGLETON:
                 synchronized (this){
@@ -115,82 +114,114 @@ public class DefaultBeanFactory implements BeanFactory{
                             return readyBean;
                         case IN_CREATE:
                             beanDefinition.setStatus(BeanDefinition.Status.UNREACHABLE); // unreachable
-                            throw new BeanException("DefaultBeanFactory: Bean >'"+beanName+" -- "
-                                    +className+"'< encounter Circular Dependency (Singleton Mood).");
+                            throw new BeanException("DefaultBeanFactory: Bean ['"+beanName+" -- "
+                                    +className+"'] encounter Circular Dependency (Singleton Mood).");
                         case IN_INITIALIZE:
-                            logger.info("DefaultBeanFactory: Bean >'{} -- {}'< meet early access.",beanName,className);
+                            logger.info("DefaultBeanFactory: Bean ['{} -- {}'] meet early access.",beanName,className);
                             earlyBean = earlyBeans.get(beanName);
                             if(earlyBean == null)
-                                throw new BeanException("DefaultBeanFactory: Bean >'"+beanName+" -- "
-                                        +className+"'< IN Status >INITIALIZE< and" +
+                                throw new BeanException("DefaultBeanFactory: Bean ['"+beanName+" -- "
+                                        +className+"'] IN Status [INITIALIZE] and" +
                                         "need early access, but earlyMap do not contain.");
                             return earlyBean;
                         case AVAILABLE:
                             readyBean = readyBeans.get(beanName);
                             if(readyBean == null)
-                                throw new BeanException("DefaultBeanFactory: Bean >'"+beanName+" -- "
-                                        +className+"'< IN Status >AVAILABLE< , but"+
+                                throw new BeanException("DefaultBeanFactory: Bean ['"+beanName+" -- "
+                                        +className+"'] IN Status [AVAILABLE] , but"+
                                         "readyMap do not contain");
                             return readyBean;
                         case UNREACHABLE:
-                            throw new BeanException("DefaultBeanFactory: Bean >'"+beanName+" -- "
-                                    +className+"'< IN Status >UN_REACHABLE< .");
+                            throw new BeanException("DefaultBeanFactory: Bean ['"+beanName+" -- "
+                                    +className+"'] IN Status [UN_REACHABLE] .");
                         default:
-                            throw new BeanException("DefaultBeanFactory: Bean >'"+beanName+" -- "
-                                    +className+"'< IN unknown Status >"+beanDefinition.getStatus()+
-                                    "<, which should not happen.");
+                            throw new BeanException("DefaultBeanFactory: Bean ['"+beanName+" -- "
+                                    +className+"'] IN unknown Status ["+beanDefinition.getStatus()+
+                                    "], which should not happen.");
                     }
                 }
             default:
-                throw new BeanException("BeanDefinition: Bean >'"+beanName+" -- "
-                        +className+"'< has unsupported scope"+beanDefinition.getScope());
+                throw new BeanException("BeanDefinition: Bean ['"+beanName+" -- "
+                        +className+"'] has unsupported scope"+beanDefinition.getScope());
         }
     }
 
     private Object createBean(BeanDefinition beanDefinition){
-        BeanReference[] constructorArgs = beanDefinition.getConstructorArgs();
-        if(constructorArgs != null && constructorArgs.length != 0) {
-            Object[] args = new Object[constructorArgs.length]; // cannot cache args, caz singleton do not need, while prototype can not
-            String argBeanName;
-            for (int i = 0; i < args.length; i++) {
-                if (!constructorArgs[i].byName())
-                    argBeanName = convertFromTypeToName(constructorArgs[i].getType());
-                else argBeanName = constructorArgs[i].getBeanName();
-                args[i] = doGetBean(argBeanName);
-                typeToNameMap.put(constructorArgs[i].getType(), argBeanName); // put if can get bean
-            }
+        if(beanDefinition instanceof FactoryBeanDefinition){
+            FactoryBeanDefinition factoryBeanDefinition = (FactoryBeanDefinition) beanDefinition;
+            BeanReference[] methodArgs = factoryBeanDefinition.getMethodArgs();
+            Object[] args = getBeansFromBeanReferences(methodArgs);
+            // get invoker
+            Object obj = getBeanFromBeanReference(factoryBeanDefinition.getInvoker());
+            // end invoker
+            Method method;
             try {
-                return beanDefinition.getConstructor().newInstance(args);
-            } catch (IllegalAccessException | InstantiationException | InvocationTargetException e) {
-                logger.error("DefaultBeanFactory: error occur when constructor.newInstance(Object...)", e);
+                method = factoryBeanDefinition.getMethod();
+                method.setAccessible(true); // close check
+                return method.invoke(obj,args); //
+            } catch (NullPointerException | IllegalAccessException | InvocationTargetException | IllegalArgumentException e) {
+                logger.error("DefaultBeanFactory: FactoryBeanDefinition createBean failed.",e);
                 throw new BeanException(e);
             }
-        }else{
-            try {
-                return beanDefinition.getConstructor().newInstance();
-            } catch (IllegalAccessException | InstantiationException | InvocationTargetException e) {
-                logger.error("DefaultBeanFactory: error occur when constructor.newInstance(Object...)", e);
-                throw new BeanException(e);
+        }else {
+            BeanReference[] constructorArgs = beanDefinition.getConstructorArgs();
+            if (constructorArgs != null && constructorArgs.length != 0) {
+                Object[] args = getBeansFromBeanReferences(constructorArgs); // cannot cache args, caz singleton do not need, while prototype can not
+                try {
+                    return beanDefinition.getConstructor().newInstance(args);
+                } catch (IllegalAccessException | InstantiationException | InvocationTargetException e) {
+                    logger.error("DefaultBeanFactory: error occur when constructor.newInstance(Object...)", e);
+                    throw new BeanException(e);
+                }
+            } else {
+                try {
+                    return beanDefinition.getConstructor().newInstance();
+                } catch (IllegalAccessException | InstantiationException | InvocationTargetException e) {
+                    logger.error("DefaultBeanFactory: error occur when constructor.newInstance(Object...)", e);
+                    throw new BeanException(e);
+                }
             }
         }
     }
 
+    private Object[] getBeansFromBeanReferences(BeanReference[] beanReferences){
+        if(beanReferences != null && beanReferences.length != 0){
+            Object[] args = new Object[beanReferences.length]; // cannot cache args, caz singleton do not need, while prototype can not
+            for (int i = 0; i < args.length; i++) {
+                args[i] = getBeanFromBeanReference(beanReferences[i]);
+            }
+            return args;
+        }
+        return null;
+    }
+
+    private Object getBeanFromBeanReference(BeanReference beanReference){
+        if(beanReference != null){
+            String argBeanName;
+            if (!beanReference.byName())
+                argBeanName = convertFromTypeToName(beanReference.getType());
+            else argBeanName = beanReference.getBeanName();
+            Object bean = doGetBean(argBeanName);
+            if(!beanReference.byName())
+                typeToNameMap.put(beanReference.getType(),argBeanName);
+            return bean;
+        }
+        return null;
+    }
+
     private Object populateBean(Object earlyBean, BeanDefinition beanDefinition){
+        if(beanDefinition instanceof FactoryBeanDefinition) return earlyBean;
+
         if(!beanDefinition.getBeanClass().isInstance(earlyBean))
             throw new BeanException("DefaultBeanFactory: earlyBean is not instance of class >"+ beanDefinition.getBeanClass().getName()
                     +"< declared in BeanDefinition, when populateBean");
         List<PropertyValue> propertyValues = beanDefinition.getPropertyValues().getPropertyValueList();
         String fieldName;
-        String fieldBeanName;
         BeanReference ref;
         for(PropertyValue propertyValue : propertyValues){
             fieldName = propertyValue.getName();
             ref = propertyValue.getValue();
-            if(ref.byName())
-                fieldBeanName = ref.getBeanName();
-            else fieldBeanName = convertFromTypeToName(ref.getType());
-            Object o = doGetBean(fieldBeanName);
-            typeToNameMap.put(ref.getType(),fieldBeanName); // put if can get bean
+            Object o = getBeanFromBeanReference(ref);
 
             Field field;
             try{
@@ -209,7 +240,7 @@ public class DefaultBeanFactory implements BeanFactory{
         String beanName = typeToNameMap.get(clazz);
         if(beanName != null) return beanName;
         for(BeanDefinition beanDefinition : beanDefinitionMap.values()){
-            if(beanDefinition.getBeanClass().isAssignableFrom(clazz)){
+            if(clazz.isAssignableFrom(beanDefinition.getBeanClass())){ // beanDefinition.getBeanClass() extends clazz
                 if(beanName != null)
                     throw new BeanException("BeanDefinition: Class >"+clazz.toString()+
                         "< has multi-suitable beans: "+beanName+" and "+ beanDefinition.getBeanName());

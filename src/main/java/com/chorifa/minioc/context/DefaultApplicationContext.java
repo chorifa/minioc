@@ -30,8 +30,12 @@ public class DefaultApplicationContext extends AbstractApplicationContext {
             try {
                 clazz = Class.forName(name);
                 BeanDefinition beanDefinition = AnnotationParser.parseClassToBean(clazz);
+                BeanDefinition[] beanDefinitions = AnnotationParser.parseBeanInClass(clazz);
                 if(beanDefinition != null)
                     beanFactory.registerBeanDefinition(beanDefinition.getBeanName(),beanDefinition);
+                if(beanDefinitions != null && beanDefinitions.length != 0)
+                    for(BeanDefinition bd : beanDefinitions)
+                        beanFactory.registerBeanDefinition(bd.getBeanName(),bd);
             } catch (ClassNotFoundException e) {
                 logger.warn("DefaultApplicationContext: class {} not found.", name);
             }

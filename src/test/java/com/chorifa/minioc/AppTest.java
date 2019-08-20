@@ -10,9 +10,6 @@ import com.chorifa.minioc.entity.NodeB;
 import com.chorifa.minioc.entity.NodeC;
 import org.junit.Test;
 
-import javax.inject.Inject;
-import javax.inject.Named;
-
 /**
  * Unit test for simple App.
  */
@@ -46,6 +43,19 @@ public class AppTest
         Node node1 = applicationContext.getBean(NodeC.class);
         Node node2 = applicationContext.getBean(NodeC.class);
         System.out.println(node1 == node2);
+    }
+
+    @Test
+    public void testIOCBean(){
+        ApplicationContext applicationContext = new DefaultApplicationContext(this.getClass().getPackageName());
+        Node node1 = applicationContext.getBean("nodeD", Node.class);
+        Node node2 = applicationContext.getBean("nodeD", Node.class);
+        Node node3 = applicationContext.getBean(NodeC.class);
+        Node node4 = applicationContext.getBean(NodeC.class);
+        System.out.println(node1 == node2);
+        System.out.println(node3 == node4);
+        System.out.println(node1.getVersion());
+        System.out.println(node3.getVersion());
     }
 
 }
