@@ -1,5 +1,6 @@
 package com.chorifa.minioc.beans.factory;
 
+import com.chorifa.minioc.aop.Adviser;
 import com.chorifa.minioc.beans.BeanDefinition;
 import com.chorifa.minioc.utils.exceptions.BeanException;
 
@@ -14,5 +15,7 @@ public interface BeanFactory {
     void preInstantiateSingletons();
 
     void registerBeanDefinition(String name, BeanDefinition beanDefinition);
+
+    void addAdvisers(Adviser[] advisers);
 
 }

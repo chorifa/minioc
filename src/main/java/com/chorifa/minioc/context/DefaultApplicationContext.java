@@ -1,5 +1,7 @@
 package com.chorifa.minioc.context;
 
+import com.chorifa.minioc.aop.Adviser;
+import com.chorifa.minioc.aop.matcher.AdviserMatcher;
 import com.chorifa.minioc.beans.BeanDefinition;
 import com.chorifa.minioc.beans.factory.BeanFactory;
 import com.chorifa.minioc.beans.factory.DefaultBeanFactory;
@@ -17,7 +19,7 @@ public class DefaultApplicationContext extends AbstractApplicationContext {
     private final String packageName;
 
     public DefaultApplicationContext(String packageName) {
-        super(new DefaultBeanFactory());
+        super(new DefaultBeanFactory(new AdviserMatcher()));
         this.packageName = packageName;
         refresh(); // refresh is thread-safe for beanFactory
     }
@@ -29,6 +31,13 @@ public class DefaultApplicationContext extends AbstractApplicationContext {
         for(String name : names){
             try {
                 clazz = Class.forName(name);
+                /* for aop
+                * */
+                Adviser[] advisers = AnnotationParser.parseAdviserInAdvice(clazz);
+                if(advisers != null && advisers.length > 0)
+                    beanFactory.addAdvisers(advisers);
+                /* for BeanDefinition
+                * */
                 BeanDefinition beanDefinition = AnnotationParser.parseClassToBean(clazz);
                 BeanDefinition[] beanDefinitions = AnnotationParser.parseBeanInClass(clazz);
                 if(beanDefinition != null)

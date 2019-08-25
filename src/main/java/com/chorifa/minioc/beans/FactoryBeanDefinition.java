@@ -2,6 +2,9 @@ package com.chorifa.minioc.beans;
 
 import java.lang.reflect.Method;
 
+/**
+ * FactoryBean is used for @Bean
+ */
 public class FactoryBeanDefinition extends BeanDefinition {
 
     private BeanReference invoker;

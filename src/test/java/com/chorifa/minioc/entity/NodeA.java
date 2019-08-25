@@ -10,7 +10,11 @@ public class NodeA implements Node {
 
 	private int ver = 10;
 
+
 	private Node nodeB;
+
+	public NodeA() {
+	}
 
 	@Inject
 	public NodeA(@Named("nodeB") Node nodeB){
@@ -19,11 +23,13 @@ public class NodeA implements Node {
 
 	@Override
 	public int getVersion() {
+		System.out.println("NodeA: getVersion has already run");
 		return ver;
 	}
 
 	@Override
 	public String toString() {
+		System.out.println("NodeA: toString has already run.");
 		return "NodeA has field NodeB with ver = "+nodeB.getVersion();
 	}
 

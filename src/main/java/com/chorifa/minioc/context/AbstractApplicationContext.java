@@ -1,5 +1,6 @@
 package com.chorifa.minioc.context;
 
+import com.chorifa.minioc.aop.Adviser;
 import com.chorifa.minioc.beans.BeanDefinition;
 import com.chorifa.minioc.beans.factory.BeanFactory;
 import com.chorifa.minioc.beans.factory.DefaultBeanFactory;
@@ -11,6 +12,10 @@ public abstract class AbstractApplicationContext implements ApplicationContext{
 
     AbstractApplicationContext(DefaultBeanFactory beanFactory){
         this.beanFactory = beanFactory;
+    }
+
+    public void addAdvisers(Adviser[] advisers){
+        this.beanFactory.addAdvisers(advisers);
     }
 
     void refresh(){

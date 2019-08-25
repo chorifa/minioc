@@ -1,6 +1,10 @@
 package com.chorifa.minioc.utils.io;
 
+import com.chorifa.minioc.annotation.Aspect;
 import com.chorifa.minioc.annotation.Bean;
+import com.chorifa.minioc.annotation.PointCut;
+import com.chorifa.minioc.aop.Advice;
+import com.chorifa.minioc.aop.Adviser;
 import com.chorifa.minioc.beans.BeanDefinition;
 import com.chorifa.minioc.beans.BeanReference;
 import com.chorifa.minioc.beans.FactoryBeanDefinition;
@@ -11,12 +15,10 @@ import com.chorifa.minioc.utils.exceptions.BeanException;
 import javax.inject.Inject;
 import javax.inject.Named;
 import javax.inject.Singleton;
-import java.lang.reflect.Constructor;
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
-import java.lang.reflect.Parameter;
+import java.lang.reflect.*;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 public class AnnotationParser {
 
@@ -150,5 +152,53 @@ public class AnnotationParser {
         return args;
     }
 
+    /**
+     * parse @pointcut in Advice.class
+     * @param clazz class
+     * @return Adviser[]
+     */
+    public static Adviser[] parseAdviserInAdvice(Class<?> clazz){
+        if(Advice.class.isAssignableFrom(clazz) && clazz.getAnnotation(Aspect.class) != null){ // father isAssignableFrom Son
+            /* create new instance */
+            Advice instance;
+            try {
+                instance = (Advice) clazz.getConstructor().newInstance();
+            } catch (InstantiationException | InvocationTargetException | NoSuchMethodException | IllegalAccessException e) {
+                throw new AnnotationException("AnnotationParse: Advice only support default constructor.");
+            }
+
+            List<Adviser> list = new ArrayList<>();
+            Method[] methods = clazz.getDeclaredMethods();
+            PointCut pointCut; String pattern; String classPattern = null;
+
+            pointCut = clazz.getAnnotation(PointCut.class);
+            if(pointCut != null && !pointCut.value().isEmpty())
+                classPattern = pointCut.value();
+
+            for(Method method : methods){
+                pointCut = method.getAnnotation(PointCut.class);
+                if(pointCut == null){
+                    if(classPattern == null) continue;
+                    else pattern = classPattern;
+                }else if(pointCut.value().isEmpty()){
+                    pattern = Objects.requireNonNullElse(classPattern, "*.*");
+                }else pattern = pointCut.value();
+
+                Adviser adviser = null;
+                switch (method.getName()){
+                    case "before": adviser = new Adviser(pattern,instance,Adviser.AdviceType.BEFORE); break;
+                    case "after": adviser = new Adviser(pattern,instance, Adviser.AdviceType.AFTER); break;
+                    case "afterReturning": adviser = new Adviser(pattern,instance, Adviser.AdviceType.AFTER_RETURN); break;
+                    case "afterThrowing": adviser = new Adviser(pattern,instance, Adviser.AdviceType.AFTER_THROWING); break;
+                    case "around": adviser = new Adviser(pattern,instance, Adviser.AdviceType.AROUND);break;
+                    //default: throw new AnnotationException("AnnotationParser: @Pointcut not support "+method.getName());
+                }
+                if(adviser != null)
+                    list.add(adviser);
+            }
+            if(!list.isEmpty()) return list.toArray(new Adviser[0]);
+        }
+        return null;
+    }
 
 }

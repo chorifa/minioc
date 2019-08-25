@@ -1,9 +1,14 @@
 package com.chorifa.minioc.beans.factory;
 
+import com.chorifa.minioc.aop.AbstractAopProxy;
+import com.chorifa.minioc.aop.Adviser;
+import com.chorifa.minioc.aop.CglibAopProxy;
+import com.chorifa.minioc.aop.matcher.AdviserMatcher;
 import com.chorifa.minioc.beans.BeanDefinition;
 import com.chorifa.minioc.beans.BeanReference;
 import com.chorifa.minioc.beans.FactoryBeanDefinition;
 import com.chorifa.minioc.beans.PropertyValue;
+import com.chorifa.minioc.utils.Assert;
 import com.chorifa.minioc.utils.exceptions.BeanException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,6 +32,19 @@ public class DefaultBeanFactory implements BeanFactory{
     private final Map<String /*bean name*/, Object /*early bean*/> earlyBeans = new HashMap<>();
 
     private final Map<Class<?> /*class*/, String /*bean name*/> typeToNameMap = new HashMap<>();
+
+    /* for aop */
+    private final AdviserMatcher matcher;
+
+    @Override
+    public void addAdvisers (Adviser[] advisers){
+        this.matcher.addAdvisers(advisers);
+    }
+
+    public DefaultBeanFactory(AdviserMatcher matcher) {
+        Assert.notNull(matcher,"DefaultBeanFactory: AdviserMatcher cannot be null.");
+        this.matcher = matcher;
+    }
 
     @Override
     public Object getBean(String name) throws BeanException {
@@ -61,7 +79,12 @@ public class DefaultBeanFactory implements BeanFactory{
                         Object bean;
                         try {
                             bean = createBean(beanDefinition);
-                            bean = populateBean(bean,beanDefinition);
+                            /* for aop start */
+                            List<Adviser> advisers = matcher.getAdviserMatchForClass(beanDefinition.getBeanClass());
+                            Object oldBean = bean; // if aop : we need bean and populate oldBean; if no aop: oldBean = bean
+                            if(advisers != null && !advisers.isEmpty())
+                                bean = createAopProxy(advisers,oldBean,matcher);
+                            bean = populateBean(oldBean,beanDefinition);
                         }catch (BeanException e){
                             beanDefinition.setStatus(BeanDefinition.Status.UNREACHABLE);
                             throw e;
@@ -96,11 +119,17 @@ public class DefaultBeanFactory implements BeanFactory{
                                 beanDefinition.setStatus(BeanDefinition.Status.UNREACHABLE);
                                 throw e;
                             }
-                            earlyBeans.put(beanName,earlyBean); // register into earlyBeans
+                            /* for aop start */
+                            List<Adviser> advisers = matcher.getAdviserMatchForClass(beanDefinition.getBeanClass());
+                            Object oldBean = earlyBean;
+                            if(advisers != null && !advisers.isEmpty())
+                                earlyBean = createAopProxy(advisers,earlyBean,matcher).getProxy();
+                            /* for aop end */
+                            earlyBeans.put(beanName, earlyBean); // register into earlyBeans
                             beanDefinition.setStatus(BeanDefinition.Status.IN_INITIALIZE);
-                            Object readyBean;
-                            try {
-                                readyBean = populateBean(earlyBean, beanDefinition);
+                            Object readyBean = earlyBean; // if no aop : earlyBean = oldBean; if aop : we need earlyBean
+                            try { // return oldBean
+                                oldBean = populateBean(oldBean, beanDefinition); // populate oldBean, but others should use proxy
                             }catch (BeanException e){
                                 beanDefinition.setStatus(BeanDefinition.Status.UNREACHABLE);
                                 throw e;
@@ -267,6 +296,10 @@ public class DefaultBeanFactory implements BeanFactory{
                 logger.error("DefaultBeanFactory: encounter exception when get Bean {}",beanName,e);
             }
         }
+    }
+
+    private AbstractAopProxy createAopProxy(List<Adviser> list, Object target, AdviserMatcher matcher){
+        return new CglibAopProxy(list,target,matcher);
     }
 
 }

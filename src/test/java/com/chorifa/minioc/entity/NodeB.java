@@ -20,11 +20,13 @@ public class NodeB implements Node {
 
 	@Override
 	public int getVersion() {
+		System.out.println("NodeB: getVersion has already run.");
 		return ver;
 	}
 
 	@Override
 	public String toString() {
+		System.out.println("NodeB: toString has already run.");
 		return "NodeB has field NodeA with ver = "+nodeA.getVersion();
 	}
 
