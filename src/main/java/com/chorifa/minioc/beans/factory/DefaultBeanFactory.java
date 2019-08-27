@@ -1,8 +1,9 @@
 package com.chorifa.minioc.beans.factory;
 
-import com.chorifa.minioc.aop.AbstractAopProxy;
+import com.chorifa.minioc.aop.AopProxy;
 import com.chorifa.minioc.aop.Adviser;
-import com.chorifa.minioc.aop.CglibAopProxy;
+import com.chorifa.minioc.aop.Cglib3AopProxy;
+import com.chorifa.minioc.aop.interceptor.MethodInterceptor;
 import com.chorifa.minioc.aop.matcher.AdviserMatcher;
 import com.chorifa.minioc.beans.BeanDefinition;
 import com.chorifa.minioc.beans.BeanReference;
@@ -36,9 +37,19 @@ public class DefaultBeanFactory implements BeanFactory{
     /* for aop */
     private final AdviserMatcher matcher;
 
-    @Override
+    @Override @Deprecated
     public void addAdvisers (Adviser[] advisers){
         this.matcher.addAdvisers(advisers);
+    }
+
+    @Override
+    public void addInterceptors (List<MethodInterceptor> interceptors){
+        this.matcher.addInterceptors(interceptors);
+    }
+
+    @Override
+    public void sortInterceptors() {
+        this.matcher.sortInterceptors();
     }
 
     public DefaultBeanFactory(AdviserMatcher matcher) {
@@ -79,11 +90,16 @@ public class DefaultBeanFactory implements BeanFactory{
                         Object bean;
                         try {
                             bean = createBean(beanDefinition);
-                            /* for aop start */
-                            List<Adviser> advisers = matcher.getAdviserMatchForClass(beanDefinition.getBeanClass());
                             Object oldBean = bean; // if aop : we need bean and populate oldBean; if no aop: oldBean = bean
+                            /* for aop start */
+                            /*
+                            List<Adviser> advisers = matcher.getAdviserMatchForClass(beanDefinition.getBeanClass());
                             if(advisers != null && !advisers.isEmpty())
                                 bean = createAopProxy(advisers,oldBean,matcher);
+                             */
+                            List<MethodInterceptor> interceptors = matcher.getInterceptorMatchForClass(beanDefinition.getBeanClass());
+                            if(interceptors != null && !interceptors.isEmpty())
+                                bean = createAopProxy(oldBean,interceptors).getProxy();
                             bean = populateBean(oldBean,beanDefinition);
                         }catch (BeanException e){
                             beanDefinition.setStatus(BeanDefinition.Status.UNREACHABLE);
@@ -119,11 +135,16 @@ public class DefaultBeanFactory implements BeanFactory{
                                 beanDefinition.setStatus(BeanDefinition.Status.UNREACHABLE);
                                 throw e;
                             }
-                            /* for aop start */
-                            List<Adviser> advisers = matcher.getAdviserMatchForClass(beanDefinition.getBeanClass());
                             Object oldBean = earlyBean;
+                            /* for aop start */
+                            /*
+                            List<Adviser> advisers = matcher.getAdviserMatchForClass(beanDefinition.getBeanClass());
                             if(advisers != null && !advisers.isEmpty())
                                 earlyBean = createAopProxy(advisers,earlyBean,matcher).getProxy();
+                             */
+                            List<MethodInterceptor> interceptors = matcher.getInterceptorMatchForClass(beanDefinition.getBeanClass());
+                            if(interceptors != null && !interceptors.isEmpty())
+                                earlyBean = createAopProxy(earlyBean,interceptors).getProxy();
                             /* for aop end */
                             earlyBeans.put(beanName, earlyBean); // register into earlyBeans
                             beanDefinition.setStatus(BeanDefinition.Status.IN_INITIALIZE);
@@ -297,9 +318,14 @@ public class DefaultBeanFactory implements BeanFactory{
             }
         }
     }
+//
+//    @Deprecated
+//    private AopProxy createAopProxy(List<Adviser> list, Object target, AdviserMatcher matcher){
+//        return new CglibAopProxy(list,target,matcher);
+//    }
 
-    private AbstractAopProxy createAopProxy(List<Adviser> list, Object target, AdviserMatcher matcher){
-        return new CglibAopProxy(list,target,matcher);
+    private AopProxy createAopProxy(Object target, List<MethodInterceptor> interceptors){
+        return new Cglib3AopProxy(target,interceptors);
     }
 
 }

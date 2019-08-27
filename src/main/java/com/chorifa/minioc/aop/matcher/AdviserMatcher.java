@@ -1,26 +1,54 @@
 package com.chorifa.minioc.aop.matcher;
 
 import com.chorifa.minioc.aop.Adviser;
+import com.chorifa.minioc.aop.interceptor.MethodInterceptor;
 import com.chorifa.minioc.utils.exceptions.AopException;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 public class AdviserMatcher {
 
-    private final static char DELIMITER = ':';
+    public final static char DELIMITER = ':';
 
     private final List<Adviser> advisers = new ArrayList<>();
 
+    private final List<MethodInterceptor> interceptors = new ArrayList<>();
+
+    @Deprecated
     public void addAdviser(Adviser adviser){
         advisers.add(adviser);
     }
 
+    @Deprecated
     public void addAdvisers(Adviser[] advisers){
         this.advisers.addAll(Arrays.asList(advisers));
     }
 
+    public void addInterceptors(List<MethodInterceptor> interceptors){
+        if(interceptors != null)
+            this.interceptors.addAll(interceptors);
+    }
+
+    public void sortInterceptors(){
+        Collections.sort(this.interceptors);
+    }
+
+    public List<MethodInterceptor> getInterceptorMatchForClass(Class<?> clazz){
+        String className = clazz.getCanonicalName();
+        String pattern;
+        List<MethodInterceptor> list = new ArrayList<>();
+        for(MethodInterceptor interceptor : interceptors){
+            pattern = interceptor.getPattern();
+            if(isMatch(className,pattern.substring(0,pattern.lastIndexOf(DELIMITER))))
+                list.add(interceptor);
+        }
+        return list;
+    }
+
+    @Deprecated
     public List<Adviser> getAdviserMatchForClass(Class<?> clazz){
         String className = clazz.getCanonicalName();
         String pattern;
@@ -33,6 +61,7 @@ public class AdviserMatcher {
         return list;
     }
 
+    @Deprecated
     public Adviser[] getPriorityAdviserMatchForMethod(String methodName, List<Adviser> list){
         if(list == null || list.isEmpty()) return null;
         Adviser[] advisers = new Adviser[5];

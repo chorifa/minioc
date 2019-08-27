@@ -10,16 +10,19 @@ import net.sf.cglib.proxy.MethodProxy;
 import java.lang.reflect.Method;
 import java.util.List;
 
-public class CglibAopProxy extends AbstractAopProxy implements MethodInterceptor {
+@Deprecated
+public class CglibAopProxy  implements MethodInterceptor, AopProxy{
 
     private final Object target;
 
     private final AdviserMatcher matcher;
 
+    private List<Adviser> advisers;
+
     public CglibAopProxy(List<Adviser> advisers, Object target, AdviserMatcher matcher) {
-        super(advisers);
         Assert.notNull(target, "CglibAopProxy: Object target cannot be null in constructor.");
         Assert.notNull(matcher, "CglibAopProxy: AdviserMatcher matcher cannot be null in constructor.");
+        this.advisers = advisers;
         this.target = target;
         this.matcher = matcher;
     }

@@ -1,6 +1,6 @@
 package com.chorifa.minioc.context;
 
-import com.chorifa.minioc.aop.Adviser;
+import com.chorifa.minioc.aop.interceptor.MethodInterceptor;
 import com.chorifa.minioc.aop.matcher.AdviserMatcher;
 import com.chorifa.minioc.beans.BeanDefinition;
 import com.chorifa.minioc.beans.factory.BeanFactory;
@@ -33,22 +33,29 @@ public class DefaultApplicationContext extends AbstractApplicationContext {
                 clazz = Class.forName(name);
                 /* for aop
                 * */
+                /*
                 Adviser[] advisers = AnnotationParser.parseAdviserInAdvice(clazz);
                 if(advisers != null && advisers.length > 0)
                     beanFactory.addAdvisers(advisers);
+                 */
+                List<MethodInterceptor> interceptors = AnnotationParser.parseInterceptorInAdvice(clazz);
+                if(interceptors != null && !interceptors.isEmpty())
+                    addInterceptors(interceptors);
                 /* for BeanDefinition
                 * */
                 BeanDefinition beanDefinition = AnnotationParser.parseClassToBean(clazz);
                 BeanDefinition[] beanDefinitions = AnnotationParser.parseBeanInClass(clazz);
                 if(beanDefinition != null)
-                    beanFactory.registerBeanDefinition(beanDefinition.getBeanName(),beanDefinition);
+                    registerBeanDefinition(beanDefinition.getBeanName(),beanDefinition);
                 if(beanDefinitions != null && beanDefinitions.length != 0)
                     for(BeanDefinition bd : beanDefinitions)
-                        beanFactory.registerBeanDefinition(bd.getBeanName(),bd);
+                        registerBeanDefinition(bd.getBeanName(),bd);
             } catch (ClassNotFoundException e) {
                 logger.warn("DefaultApplicationContext: class {} not found.", name);
             }
         }
+        // sort aop interceptors
+        sortInterceptors();
     }
 
 }

@@ -29,4 +29,8 @@ public class DefaultAdvice implements Advice {
         return join.proceed();
     }
 
+    @Override
+    public Object around(MethodInvocation invocation, Method method, Object[] args, Object target) throws Throwable {
+        return invocation.flow();
+    }
 }

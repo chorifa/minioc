@@ -14,4 +14,6 @@ public interface Advice {
 
     Object around(ProcessJoin join) throws Throwable;
 
+    Object around(MethodInvocation invocation, Method method, Object[] args, Object target) throws Throwable;
+
 }

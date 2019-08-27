@@ -1,9 +1,8 @@
 # MEMO
 
 ## 未完成事项
-- 只提供CGlib作为AOP中的代理，只支持给予特定接口的AOP配置，每种AOP范围只允许一次。  
+- 只提供CGlib作为AOP中的代理，只支持给予特定接口的AOP配置，每种AOP范围可以允许多次。  
 - IOC只能解字段循环依赖，构造函数循环依赖本身不可解，字段构造函数混合循环依赖随机解(依照初始化顺序)。   
-- AOP实现比较简陋，可以考虑使用责任链模式改造。
 
 ## 细节
 
@@ -15,4 +14,12 @@
 
 ### AOP
 - miniIOC中AOP代理处在创建实例和注入字段之间，为了处理字段循环依赖下的AOP代理。Spring的AOP代理也作为PostProcessor的一种在最后initializeBean的时候进行(猜测如果存在循环依赖，则也会在创建实例后进行额外的AOP处理)。   
-- Spring使用责任链模式进行新增方法(Netty也使用了)。miniIOC为了简单直接将方法顺序在子类的覆盖方法体中调用。这里的代理类是个壳其方法只会运行新增的advice方法，原方法仍旧给原始对象运行。  
+- Spring使用责任链模式进行新增方法(Netty也使用了)。早期版本的miniIOC为了简单直接将方法顺序在子类的覆盖方法体中调用。当前版本也使用了责任链模式，允许同个AOP范围多次使用。这里的代理类是个壳其方法只会运行新增的advice方法，原方法仍旧给原始对象运行。  
+
+#### 责任链
+优化后的责任链本质上就是两个函数的互相递归调用。分成两个函数是为了使得掌管整体运行flow的部分 与 每个处理机实际添加的invoke部分分开，更灵活。当前版本的责任链实际就是MethodInvocation的flow()方法和MethodInterceptor的invoke()互相调用。flow()方法每次选择一个Interceptor执行其invoke方法，选完了就执行target原对象的被代理方法。invoke()方法则在合适的位置调用flow()方法，让责任链传播下去。   
+
+责任链中的顺序: before->after->after return/throw->around   
+
+实际递归中的顺序: before->around->after return/throw->after   
+

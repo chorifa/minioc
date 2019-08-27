@@ -2,6 +2,7 @@ package com.chorifa.minioc.aop;
 
 import com.chorifa.minioc.utils.Assert;
 
+@Deprecated
 public final class Adviser {
 
     private String scope;

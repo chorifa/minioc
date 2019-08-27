@@ -5,6 +5,8 @@ import com.chorifa.minioc.annotation.Bean;
 import com.chorifa.minioc.annotation.PointCut;
 import com.chorifa.minioc.aop.Advice;
 import com.chorifa.minioc.aop.Adviser;
+import com.chorifa.minioc.aop.MethodInvocation;
+import com.chorifa.minioc.aop.interceptor.*;
 import com.chorifa.minioc.beans.BeanDefinition;
 import com.chorifa.minioc.beans.BeanReference;
 import com.chorifa.minioc.beans.FactoryBeanDefinition;
@@ -153,10 +155,63 @@ public class AnnotationParser {
     }
 
     /**
+     * parse Advice into MethodInterceptor
+     * @param clazz class
+     * @return List<MethodInterceptor>
+     */
+    public static List<MethodInterceptor> parseInterceptorInAdvice(Class<?> clazz){
+        if(Advice.class.isAssignableFrom(clazz) && clazz.getAnnotation(Aspect.class) != null){ // father isAssignableFrom Son
+            /* create new instance */
+            Advice instance;
+            try {
+                instance = (Advice) clazz.getConstructor().newInstance();
+            } catch (InstantiationException | InvocationTargetException | NoSuchMethodException | IllegalAccessException e) {
+                throw new AnnotationException("AnnotationParse: Advice only support default constructor.");
+            }
+
+            List<MethodInterceptor> list = new ArrayList<>();
+            Method[] methods = clazz.getDeclaredMethods();
+            PointCut pointCut; String pattern; String classPattern = null;
+
+            pointCut = clazz.getAnnotation(PointCut.class);
+            if(pointCut != null && !pointCut.value().isEmpty())
+                classPattern = pointCut.value();
+
+            for(Method method : methods){
+                pointCut = method.getAnnotation(PointCut.class);
+                if(pointCut == null){
+                    if(classPattern == null) continue;
+                    else pattern = classPattern;
+                }else if(pointCut.value().isEmpty()){
+                    pattern = Objects.requireNonNullElse(classPattern, "*.*");
+                }else pattern = pointCut.value();
+
+                MethodInterceptor interceptor = null;
+                switch (method.getName()){
+                    case "before": interceptor = new BeforeMethodInterceptor(instance, pattern); break;
+                    case "after": interceptor = new AfterMethodInterceptor(instance, pattern); break;
+                    case "afterReturning": interceptor = new AfterReturnMethodInterceptor(instance, pattern); break;
+                    case "afterThrowing": interceptor = new AfterThrowMethodInterceptor(instance, pattern); break;
+                    case "around":
+                        if(method.getParameterCount() == 4 && MethodInvocation.class.isAssignableFrom(method.getParameterTypes()[0]))
+                            interceptor = new AroundMethodInterceptor(instance, pattern); break;
+                    //default: throw new AnnotationException("AnnotationParser: @Pointcut not support "+method.getName());
+                }
+                if(interceptor != null)
+                    list.add(interceptor);
+            }
+            if(!list.isEmpty()) return list;
+        }
+        return null;
+    }
+
+
+    /**
      * parse @pointcut in Advice.class
      * @param clazz class
      * @return Adviser[]
      */
+    @Deprecated
     public static Adviser[] parseAdviserInAdvice(Class<?> clazz){
         if(Advice.class.isAssignableFrom(clazz) && clazz.getAnnotation(Aspect.class) != null){ // father isAssignableFrom Son
             /* create new instance */
