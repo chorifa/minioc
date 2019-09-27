@@ -2,6 +2,7 @@ package com.chorifa.minioc.aop;
 
 import net.sf.cglib.proxy.MethodProxy;
 
+@Deprecated
 public class ProcessJoin {
 
     private Object bean;

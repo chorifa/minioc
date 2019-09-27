@@ -2,7 +2,7 @@ package com.chorifa.minioc.aop;
 
 import java.lang.reflect.Method;
 
-public class DefaultAdvice implements Advice {
+public class DefaultAdviceAdapter implements Advice {
 
     @Override
     public void before(Method method, Object[] args, Object target) throws Throwable {
@@ -24,7 +24,7 @@ public class DefaultAdvice implements Advice {
 
     }
 
-    @Override
+    @Override @Deprecated
     public Object around(ProcessJoin join) throws Throwable{
         return join.proceed();
     }

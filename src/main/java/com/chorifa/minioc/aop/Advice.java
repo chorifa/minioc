@@ -12,6 +12,7 @@ public interface Advice {
 
     void afterThrowing(Throwable th, Method method, Object[] args, Object target) throws Throwable;
 
+    @Deprecated
     Object around(ProcessJoin join) throws Throwable;
 
     Object around(MethodInvocation invocation, Method method, Object[] args, Object target) throws Throwable;

@@ -40,7 +40,7 @@ public class CglibAopProxy  implements MethodInterceptor, AopProxy{
         }
     }
 
-    @Override
+    @Override @Deprecated
     public Object intercept(Object proxy, Method method, Object[] args, MethodProxy methodProxy) throws Throwable {
         // if has advise for this method , do interceptor
         // else invoke origin

@@ -13,6 +13,7 @@ public class AdviserMatcher {
 
     public final static char DELIMITER = ':';
 
+    @Deprecated
     private final List<Adviser> advisers = new ArrayList<>();
 
     private final List<MethodInterceptor> interceptors = new ArrayList<>();

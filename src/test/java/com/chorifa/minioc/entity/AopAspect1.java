@@ -2,14 +2,14 @@ package com.chorifa.minioc.entity;
 
 import com.chorifa.minioc.annotation.Aspect;
 import com.chorifa.minioc.annotation.PointCut;
-import com.chorifa.minioc.aop.DefaultAdvice;
+import com.chorifa.minioc.aop.DefaultAdviceAdapter;
 import com.chorifa.minioc.aop.MethodInvocation;
 import com.chorifa.minioc.aop.ProcessJoin;
 
 import java.lang.reflect.Method;
 
 @PointCut("*.entity.*:*") @Aspect
-public class AopAspect1 extends DefaultAdvice {
+public class AopAspect1 extends DefaultAdviceAdapter {
 
     @Override
     public void before(Method method, Object[] args, Object target) throws Throwable {
